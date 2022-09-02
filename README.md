@@ -28,3 +28,7 @@ unmonorepo --source=./package.json --dist=./dist/node_modules --command="npm ins
 
 Unmonorepo will grab **dependencies** in **./package.json** and run **npm install --omit=dev --prefer-offline** to install all dependencies, then copy node_modules to **./dist/node_modules**
 
+## Note
+
+Source package.json **dependencies** should not contain any workspace (monorepo modules), you should use webpack (or other javascript bundler) to pack your source code, or just use a script to process workspace dependency files.
+
