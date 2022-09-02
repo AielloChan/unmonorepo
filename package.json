@@ -1,0 +1,20 @@
+{
+  "name": "unmonorepo",
+  "version": "1.0.0",
+  "description": "create production node modules for monorepo",
+  "main": "index.js",
+  "bin": "index.js",
+  "keywords": [
+    "monorepo",
+    "node_modules",
+    "nohoist",
+    "workspace",
+    "isolate"
+  ],
+  "author": "Aiello Chan<aiello.chan@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "fs-extra": "^10.1.0",
+    "yargs": "^17.5.1"
+  }
+}
