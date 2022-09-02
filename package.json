@@ -1,9 +1,11 @@
 {
   "name": "unmonorepo",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "create production node modules for monorepo",
   "main": "index.js",
-  "bin": "index.js",
+  "bin": {
+    "unmonorepo": "index.js"
+  },
   "keywords": [
     "monorepo",
     "node_modules",
