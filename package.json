@@ -1,10 +1,10 @@
 {
-  "name": "unmonorepo",
+  "name": "@unmonorepo/pkg",
   "version": "1.0.4",
-  "description": "create production node modules for monorepo",
+  "description": "install production node modules for specify monorepo workspace",
   "main": "index.js",
   "bin": {
-    "unmonorepo": "index.js"
+    "unmonorepo-pkg": "index.js"
   },
   "keywords": [
     "monorepo",

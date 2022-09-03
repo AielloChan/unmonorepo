@@ -41,7 +41,7 @@ const contentHash = crypto
   .createHash("md5")
   .update(JSON.stringify(sourcePackageJson))
   .digest("hex");
-const cacheDir = `${process.env.HOME}/.cache/${packageJson.name}/${contentHash}`;
+const cacheDir = `${process.env.HOME}/.cache/unmonorepo-pkg/${contentHash}`;
 
 const { packages } = getPackagesSync(cwd);
 const monorepoPackageNames = packages.map((p) => p.packageJson.name);
