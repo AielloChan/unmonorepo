@@ -25,7 +25,7 @@ const argv = yargs(hideBin(process.argv))
   .option("command", {
     alias: "c",
     type: "string",
-    default: "npm install --omit=dev --prefer-offline",
+    default: "npm install --omit=dev --prefer-offline --no-audit --no-fund",
     description: "Command to install dependencies",
   })
   .help()
