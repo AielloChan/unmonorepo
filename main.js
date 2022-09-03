@@ -6,6 +6,7 @@ const yargs = require("yargs/yargs");
 const { hideBin } = require("yargs/helpers");
 const { execSync } = require("child_process");
 const packageJson = require("./package.json");
+const { getPackagesSync } = require("@manypkg/get-packages");
 
 // get some params
 const argv = yargs(hideBin(process.argv))
@@ -34,16 +35,31 @@ const argv = yargs(hideBin(process.argv))
 const cwd = process.cwd();
 
 // get package.json
-const sourecePackageJson = require(path.resolve(cwd, argv.source));
+const sourcePackageJson = require(path.resolve(cwd, argv.source));
 // get cache path
 const contentHash = crypto
   .createHash("md5")
-  .update(JSON.stringify(sourecePackageJson))
+  .update(JSON.stringify(sourcePackageJson))
   .digest("hex");
 const cacheDir = `${process.env.HOME}/.cache/${packageJson.name}/${contentHash}`;
 
+const { packages } = getPackagesSync(cwd);
+const monorepoPackageNames = packages.map((p) => p.packageJson.name);
+
+// exclude monorepo packages
+const dependencies = sourcePackageJson.dependencies
+  ? Object.keys(sourcePackageJson.dependencies)
+      .filter((name) => !monorepoPackageNames.includes(name))
+      .reduce((acc, name) => {
+        acc[name] = sourcePackageJson.dependencies[name];
+        return acc;
+      }, {})
+  : {};
+
 // NOTE: just use dependencies filed to install
-const finalPackageJson = { dependencies: sourecePackageJson.dependencies };
+const finalPackageJson = {
+  dependencies,
+};
 
 // output new package.json
 fs.ensureDirSync(cacheDir);
