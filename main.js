@@ -7,6 +7,60 @@ const { exec, execSync } = require("child_process");
 const { getPackages, getPackagesSync } = require("@manypkg/get-packages");
 
 /**
+ * @typedef {import('@manypkg/get-packages').Package['packageJson']} packageJson
+ */
+
+/**
+ * Recursively get all dependencies from a package.json except monorepo packages
+ * @param {packageJson} sourcePackageJson
+ * @param {Array<import('@manypkg/get-packages').Package>} packages
+ * @returns {Partial<packageJson>}
+ */
+function getDeps(sourcePackageJson, packages) {
+  const monorepoPackageNames = packages.map((p) => p.packageJson.name);
+
+  /**
+   * @type {Record<string, string>}
+   */
+  const dependencies = {};
+  const _processed = new Set();
+  let jobs = [sourcePackageJson.dependencies];
+
+  while (jobs.length) {
+    const job = jobs.shift();
+    if (!job) {
+      continue;
+    }
+
+    for (const pkgName of Object.keys(job)) {
+      if (_processed.has(pkgName)) {
+        continue;
+      }
+      _processed.add(pkgName);
+
+      const isMonorepoPkg = monorepoPackageNames.includes(pkgName);
+      if (isMonorepoPkg) {
+        const targetPkg = packages.find((p) => p.packageJson.name === pkgName);
+        if (!targetPkg) {
+          throw new Error(`can not find package ${pkgName}`);
+        }
+        const deps = targetPkg.packageJson.dependencies;
+        if (deps) {
+          jobs.push(deps);
+        }
+      } else {
+        dependencies[pkgName] = job[pkgName];
+      }
+    }
+  }
+
+  // NOTE: just use dependencies filed to install
+  return {
+    dependencies,
+  };
+}
+
+/**
  * Install dependencies for a package.json
  *
  * will ignore monorepo packages by default
@@ -36,22 +90,7 @@ async function installPkg(params = {}) {
   const realCacheDir = path.resolve(cacheDir, `unmonorepo-pkg/${contentHash}`);
 
   const { packages } = await getPackages(cwd);
-  const monorepoPackageNames = packages.map((p) => p.packageJson.name);
-
-  // exclude monorepo packages
-  const dependencies = sourcePackageJson.dependencies
-    ? Object.keys(sourcePackageJson.dependencies)
-        .filter((name) => !monorepoPackageNames.includes(name))
-        .reduce((acc, name) => {
-          acc[name] = sourcePackageJson.dependencies[name];
-          return acc;
-        }, {})
-    : {};
-
-  // NOTE: just use dependencies filed to install
-  const finalPackageJson = {
-    dependencies,
-  };
+  const finalPackageJson = getDeps(sourcePackageJson, packages);
 
   // output new package.json
   await fs.ensureDir(realCacheDir);
@@ -114,22 +153,7 @@ function installPkgSync(params = {}) {
   const realCacheDir = path.resolve(cacheDir, `unmonorepo-pkg/${contentHash}`);
 
   const { packages } = getPackagesSync(cwd);
-  const monorepoPackageNames = packages.map((p) => p.packageJson.name);
-
-  // exclude monorepo packages
-  const dependencies = sourcePackageJson.dependencies
-    ? Object.keys(sourcePackageJson.dependencies)
-        .filter((name) => !monorepoPackageNames.includes(name))
-        .reduce((acc, name) => {
-          acc[name] = sourcePackageJson.dependencies[name];
-          return acc;
-        }, {})
-    : {};
-
-  // NOTE: just use dependencies filed to install
-  const finalPackageJson = {
-    dependencies,
-  };
+  const finalPackageJson = getDeps(sourcePackageJson, packages);
 
   // output new package.json
   fs.ensureDirSync(realCacheDir);
