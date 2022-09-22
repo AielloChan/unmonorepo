@@ -35,8 +35,8 @@ const argv = yargs(hideBin(process.argv))
 
 const cwd = process.cwd();
 
-const { installPkgs } = require("./main");
-installPkgs({
+const { installPkg } = require("./main");
+installPkg({
   cwd,
   source: argv.source,
   dist: argv.dist,

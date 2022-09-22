@@ -17,7 +17,7 @@ const { getPackagesSync } = require("@manypkg/get-packages");
  * @param {string} [params.command] install command, defaults to "npm install --omit=dev --prefer-offline --no-audit --no-fund"
  * @param {string} [params.cacheDir] install command, defaults to `${process.env.HOME}/.cache`
  */
-function installPkgs(params = {}) {
+function installPkg(params = {}) {
   const cwd = params.cwd || process.cwd();
   const source = params.source || "./package.json";
   const dist = params.dist || "./dist/node_modules";
@@ -71,5 +71,5 @@ function installPkgs(params = {}) {
 }
 
 module.exports = {
-  installPkgs,
+  installPkg,
 };
