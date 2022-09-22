@@ -33,7 +33,7 @@ unmonorepo-pkg --source=./package.json --dist=./dist/node_modules --command="npm
 Or programmatically:
 
 ```js
-const { installPkg } from "@unmonorepo/pkg"
+const { installPkg, installPkgSync } from "@unmonorepo/pkg"
 
 // just see its type def
 installPkg({

@@ -1,9 +1,12 @@
-declare module '@unmonorepo/pkg' {
-  export function installPkg(params?: {
+declare module "@unmonorepo/pkg" {
+  interface IParams {
     cwd?: string;
     source?: string;
     dist?: string;
     command?: string;
     cacheDir?: string;
-  }): void;
+  }
+
+  export function installPkg(params?: IParams): void;
+  export function installPkgSync(params?: IParams): void;
 }
