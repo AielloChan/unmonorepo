@@ -73,6 +73,7 @@ function preProcessParams(params) {
       "npm install --omit=dev --prefer-offline --no-audit --no-fund",
     cacheDir: params.cacheDir || `${process.env.HOME}/.cache`,
     omitJson: params.omitJson || false,
+    onBeforeInstall: params.onBeforeInstall || function () {},
   };
 }
 
@@ -83,7 +84,7 @@ function preProcessParams(params) {
  * @param {InstallParamsType} params
  */
 async function installPkg(params = {}) {
-  const { cwd, source, dist, command, cacheDir, omitJson } =
+  const { cwd, source, dist, command, cacheDir, omitJson, onBeforeInstall } =
     preProcessParams(params);
 
   // get package.json
@@ -105,6 +106,13 @@ async function installPkg(params = {}) {
   // output new package.json
   await fs.ensureDir(realCacheDir);
   await fs.writeFile(`${realCacheDir}/package.json`, finalPackageJsonStr);
+
+  const result = {
+    packageJson: finalPackageJson,
+  };
+
+  await onBeforeInstall(result);
+
   // install
   await new Promise((resolve, reject) => {
     exec(
@@ -131,6 +139,8 @@ async function installPkg(params = {}) {
     `${realCacheDir}/node_modules`,
     path.resolve(cwd, dist, "node_modules")
   );
+
+  return result;
 }
 
 /**
@@ -163,6 +173,10 @@ function installPkgSync(params = {}) {
   fs.ensureDirSync(realCacheDir);
   fs.writeFileSync(`${realCacheDir}/package.json`, finalPackageJsonStr);
 
+  const result = {
+    packageJson: finalPackageJson,
+  };
+
   // install
   execSync(command, {
     cwd: realCacheDir,
@@ -175,6 +189,8 @@ function installPkgSync(params = {}) {
     `${realCacheDir}/node_modules`,
     path.resolve(cwd, dist, "node_modules")
   );
+
+  return result;
 }
 
 module.exports = {
