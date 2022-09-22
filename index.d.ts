@@ -7,6 +7,6 @@ declare module "@unmonorepo/pkg" {
     cacheDir?: string;
   }
 
-  export function installPkg(params?: IParams): void;
+  export function installPkg(params?: IParams): Promise<void>;
   export function installPkgSync(params?: IParams): void;
 }
