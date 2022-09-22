@@ -16,7 +16,7 @@ const argv = yargs(hideBin(process.argv))
   .option("dist", {
     alias: "d",
     type: "string",
-    default: "./dist/node_modules",
+    default: "./dist",
     description: "Where to put the final node_modules",
   })
   .option("command", {
@@ -25,10 +25,15 @@ const argv = yargs(hideBin(process.argv))
     default: "npm install --omit=dev --prefer-offline --no-audit --no-fund",
     description: "Command to install dependencies",
   })
-  .option("cacheDir", {
+  .option("cache-dir", {
     type: "string",
     default: `${process.env.HOME}/.cache`,
     description: "Command to install dependencies",
+  })
+  .option("omit-json", {
+    type: "boolean",
+    default: false,
+    description: "Avoid output package.json",
   })
   .help()
   .parseSync();
@@ -41,5 +46,6 @@ installPkg({
   source: argv.source,
   dist: argv.dist,
   command: argv.command,
-  cacheDir: argv.cacheDir,
+  cacheDir: argv["cache-dir"],
+  omitJson: argv["omit-json"],
 });

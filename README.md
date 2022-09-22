@@ -25,10 +25,10 @@ Then just run
 
 ```bash
 # all parameters are optional, see unmonorepo/pkg --help
-unmonorepo-pkg --source=./package.json --dist=./dist/node_modules --command="npm install --omit=dev --prefer-offline --no-audit --no-fund"
+unmonorepo-pkg --source=./package.json --dist=./dist --command="npm install --omit=dev --prefer-offline --no-audit --no-fund"
 ```
 
-@unmonorepo/pkg will grab **dependencies** in **./package.json** and run **npm install --omit=dev --prefer-offline --no-audit --no-fund** to install all dependencies, then copy node_modules to **./dist/node_modules**
+@unmonorepo/pkg will grab **dependencies** in **./package.json** and run **npm install --omit=dev --prefer-offline --no-audit --no-fund** to install all dependencies, then copy node_modules to **./dist**
 
 Or programmatically:
 
@@ -42,6 +42,7 @@ installPkg({
   dist: argv.dist,
   command: argv.command,
   cacheDir: argv.cacheDir,
+  omitJson: argv.omitJson,
 })
 ```
 

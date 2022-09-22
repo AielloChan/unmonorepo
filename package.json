@@ -1,11 +1,12 @@
 {
   "name": "@unmonorepo/pkg",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "install production node modules for specify monorepo workspace",
   "main": "main.js",
   "bin": {
     "unmonorepo-pkg": "index.js"
   },
+  "types": "index.d.ts",
   "keywords": [
     "monorepo",
     "node_modules",

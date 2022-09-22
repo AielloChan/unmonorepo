@@ -7,14 +7,10 @@ const { exec, execSync } = require("child_process");
 const { getPackages, getPackagesSync } = require("@manypkg/get-packages");
 
 /**
- * @typedef {import('@manypkg/get-packages').Package['packageJson']} packageJson
- */
-
-/**
  * Recursively get all dependencies from a package.json except monorepo packages
- * @param {packageJson} sourcePackageJson
- * @param {Array<import('@manypkg/get-packages').Package>} packages
- * @returns {Partial<packageJson>}
+ * @param {PackageJsonType} sourcePackageJson
+ * @param {Array<PackageType>} packages
+ * @returns {Partial<PackageJsonType>}
  */
 function getDeps(sourcePackageJson, packages) {
   const monorepoPackageNames = packages.map((p) => p.packageJson.name);
@@ -56,7 +52,27 @@ function getDeps(sourcePackageJson, packages) {
 
   // NOTE: just use dependencies filed to install
   return {
+    name: `${sourcePackageJson.name}-unmonorepo-output`,
+    private: true,
     dependencies,
+  };
+}
+
+/**
+ * Process params default value
+ * @param {InstallParamsType} params
+ * @returns
+ */
+function preProcessParams(params) {
+  return {
+    cwd: params.cwd || process.cwd(),
+    source: params.source || "./package.json",
+    dist: params.dist || "./dist",
+    command:
+      params.command ||
+      "npm install --omit=dev --prefer-offline --no-audit --no-fund",
+    cacheDir: params.cacheDir || `${process.env.HOME}/.cache`,
+    omitJson: params.omitJson || false,
   };
 }
 
@@ -64,40 +80,31 @@ function getDeps(sourcePackageJson, packages) {
  * Install dependencies for a package.json
  *
  * will ignore monorepo packages by default
- * @param {Object} [params]
- * @param {string} [params.cwd] working directory, defaults to process.cwd()
- * @param {string} [params.source] path to package.json, defaults to ./package.json
- * @param {string} [params.dist] path to node_modules, defaults to ./dist/node_modules
- * @param {string} [params.command] install command, defaults to "npm install --omit=dev --prefer-offline --no-audit --no-fund"
- * @param {string} [params.cacheDir] install command, defaults to `${process.env.HOME}/.cache`
+ * @param {InstallParamsType} params
  */
 async function installPkg(params = {}) {
-  const cwd = params.cwd || process.cwd();
-  const source = params.source || "./package.json";
-  const dist = params.dist || "./dist/node_modules";
-  const command =
-    params.command ||
-    "npm install --omit=dev --prefer-offline --no-audit --no-fund";
-  const cacheDir = params.cacheDir || `${process.env.HOME}/.cache`;
+  const { cwd, source, dist, command, cacheDir, omitJson } =
+    preProcessParams(params);
 
   // get package.json
   const sourcePackageJson = require(path.resolve(cwd, source));
+  const { packages } = await getPackages(cwd);
+  const finalPackageJson = getDeps(sourcePackageJson, packages);
   // get cache path
   const contentHash = crypto
     .createHash("md5")
-    .update(JSON.stringify(sourcePackageJson))
+    .update(JSON.stringify(finalPackageJson))
     .digest("hex");
   const realCacheDir = path.resolve(cacheDir, `unmonorepo-pkg/${contentHash}`);
+  const finalPackageJsonStr = JSON.stringify(finalPackageJson, null, 2);
 
-  const { packages } = await getPackages(cwd);
-  const finalPackageJson = getDeps(sourcePackageJson, packages);
+  if (!omitJson) {
+    await fs.writeFile(path.resolve(dist, "package.json"), finalPackageJsonStr);
+  }
 
   // output new package.json
   await fs.ensureDir(realCacheDir);
-  await fs.writeFile(
-    `${realCacheDir}/package.json`,
-    JSON.stringify(finalPackageJson, null, 2)
-  );
+  await fs.writeFile(`${realCacheDir}/package.json`, finalPackageJsonStr);
   // install
   await new Promise((resolve, reject) => {
     exec(
@@ -120,47 +127,42 @@ async function installPkg(params = {}) {
     );
   });
   // copy node modules
-  await fs.copy(`${realCacheDir}/node_modules`, path.resolve(cwd, dist));
+  await fs.copy(
+    `${realCacheDir}/node_modules`,
+    path.resolve(cwd, dist, "node_modules")
+  );
 }
 
 /**
  * Install dependencies for a package.json
  *
  * will ignore monorepo packages by default
- * @param {Object} [params]
- * @param {string} [params.cwd] working directory, defaults to process.cwd()
- * @param {string} [params.source] path to package.json, defaults to ./package.json
- * @param {string} [params.dist] path to node_modules, defaults to ./dist/node_modules
- * @param {string} [params.command] install command, defaults to "npm install --omit=dev --prefer-offline --no-audit --no-fund"
- * @param {string} [params.cacheDir] install command, defaults to `${process.env.HOME}/.cache`
+ * @param {InstallParamsType} params
  */
 function installPkgSync(params = {}) {
-  const cwd = params.cwd || process.cwd();
-  const source = params.source || "./package.json";
-  const dist = params.dist || "./dist/node_modules";
-  const command =
-    params.command ||
-    "npm install --omit=dev --prefer-offline --no-audit --no-fund";
-  const cacheDir = params.cacheDir || `${process.env.HOME}/.cache`;
+  const { cwd, source, dist, command, cacheDir, omitJson } =
+    preProcessParams(params);
 
   // get package.json
   const sourcePackageJson = require(path.resolve(cwd, source));
+  const { packages } = getPackagesSync(cwd);
+  const finalPackageJson = getDeps(sourcePackageJson, packages);
   // get cache path
   const contentHash = crypto
     .createHash("md5")
-    .update(JSON.stringify(sourcePackageJson))
+    .update(JSON.stringify(finalPackageJson))
     .digest("hex");
   const realCacheDir = path.resolve(cacheDir, `unmonorepo-pkg/${contentHash}`);
+  const finalPackageJsonStr = JSON.stringify(finalPackageJson, null, 2);
 
-  const { packages } = getPackagesSync(cwd);
-  const finalPackageJson = getDeps(sourcePackageJson, packages);
+  if (!omitJson) {
+    fs.writeFileSync(path.resolve(dist, "package.json"), finalPackageJsonStr);
+  }
 
   // output new package.json
   fs.ensureDirSync(realCacheDir);
-  fs.writeFileSync(
-    `${realCacheDir}/package.json`,
-    JSON.stringify(finalPackageJson, null, 2)
-  );
+  fs.writeFileSync(`${realCacheDir}/package.json`, finalPackageJsonStr);
+
   // install
   execSync(command, {
     cwd: realCacheDir,
@@ -169,7 +171,10 @@ function installPkgSync(params = {}) {
     stdio: "inherit",
   });
   // copy node modules
-  fs.copySync(`${realCacheDir}/node_modules`, path.resolve(cwd, dist));
+  fs.copySync(
+    `${realCacheDir}/node_modules`,
+    path.resolve(cwd, dist, "node_modules")
+  );
 }
 
 module.exports = {
