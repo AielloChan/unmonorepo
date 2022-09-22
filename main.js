@@ -10,15 +10,16 @@ const { getPackages, getPackagesSync } = require("@manypkg/get-packages");
  * Recursively get all dependencies from a package.json except monorepo packages
  * @param {PackageJsonType} sourcePackageJson
  * @param {Array<PackageType>} packages
+ * @param {Array<string>} exclude
  * @returns {Partial<PackageJsonType>}
  */
-function getDeps(sourcePackageJson, packages) {
+function getDeps(sourcePackageJson, packages, exclude = []) {
   const monorepoPackageNames = packages.map((p) => p.packageJson.name);
 
   /**
    * @type {Record<string, string>}
    */
-  const dependencies = {};
+  const allDependencies = {};
   const _processed = new Set();
   let jobs = [sourcePackageJson.dependencies];
 
@@ -45,10 +46,18 @@ function getDeps(sourcePackageJson, packages) {
           jobs.push(deps);
         }
       } else {
-        dependencies[pkgName] = job[pkgName];
+        allDependencies[pkgName] = job[pkgName];
       }
     }
   }
+
+  // exclude some packages
+  const dependencies = Object.keys(allDependencies).reduce((acc, key) => {
+    if (!exclude.includes(key)) {
+      acc[key] = allDependencies[key];
+    }
+    return acc;
+  }, /** @type {Record<string, string>} */ ({}));
 
   // NOTE: just use dependencies filed to install
   return {
@@ -73,6 +82,7 @@ function preProcessParams(params) {
       "npm install --omit=dev --prefer-offline --no-audit --no-fund",
     cacheDir: params.cacheDir || `${process.env.HOME}/.cache`,
     omitJson: params.omitJson || false,
+    exclude: params.exclude || [],
     onBeforeInstall: params.onBeforeInstall || function () {},
   };
 }
@@ -84,13 +94,21 @@ function preProcessParams(params) {
  * @param {InstallParamsType} params
  */
 async function installPkg(params = {}) {
-  const { cwd, source, dist, command, cacheDir, omitJson, onBeforeInstall } =
-    preProcessParams(params);
+  const {
+    cwd,
+    source,
+    dist,
+    command,
+    cacheDir,
+    omitJson,
+    exclude,
+    onBeforeInstall,
+  } = preProcessParams(params);
 
   // get package.json
   const sourcePackageJson = require(path.resolve(cwd, source));
   const { packages } = await getPackages(cwd);
-  const finalPackageJson = getDeps(sourcePackageJson, packages);
+  const finalPackageJson = getDeps(sourcePackageJson, packages, exclude);
   // get cache path
   const contentHash = crypto
     .createHash("md5")
@@ -150,13 +168,13 @@ async function installPkg(params = {}) {
  * @param {InstallParamsType} params
  */
 function installPkgSync(params = {}) {
-  const { cwd, source, dist, command, cacheDir, omitJson } =
+  const { cwd, source, dist, command, cacheDir, omitJson, exclude } =
     preProcessParams(params);
 
   // get package.json
   const sourcePackageJson = require(path.resolve(cwd, source));
   const { packages } = getPackagesSync(cwd);
-  const finalPackageJson = getDeps(sourcePackageJson, packages);
+  const finalPackageJson = getDeps(sourcePackageJson, packages, exclude);
   // get cache path
   const contentHash = crypto
     .createHash("md5")

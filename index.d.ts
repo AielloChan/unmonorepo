@@ -30,6 +30,10 @@ interface InstallParamsType {
    * avoid output package.json file
    */
   omitJson?: boolean;
+  /**
+   * ignore some packages
+   */
+  exclude?: string[];
 
   /**
    * trigger after emit package.json, before npm install
