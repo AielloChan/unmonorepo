@@ -3,7 +3,7 @@ type PkgJsonType = PkgType["packageJson"];
 
 type PartialPkgJsonType = Partial<PkgJsonType>;
 
-interface ReturnType {
+interface InstallPkgReturnType {
   pkgJson: PartialPkgJsonType;
 }
 
@@ -41,10 +41,10 @@ interface InstallParamsType {
    *
    * just in async mode
    */
-  onBeforeInstall?: (params: ReturnType) => any;
+  onBeforeInstall?: (params: InstallPkgReturnType) => any;
 }
 
 declare module "@unmonorepo/pkg" {
-  export function installPkg(params?: InstallParamsType): Promise<ReturnType>;
-  export function installPkgSync(params?: InstallParamsType): ReturnType;
+  export function installPkg(params?: InstallParamsType): Promise<InstallPkgReturnType>;
+  export function installPkgSync(params?: InstallParamsType): InstallPkgReturnType;
 }
