@@ -1,91 +1,10 @@
 // @ts-check
 const path = require("path");
 const fs = require("fs-extra");
-const crypto = require("crypto");
-
-const { exec, execSync } = require("child_process");
+const { getPkgJson } = require("./lib/dependences");
+const { preProcessParams } = require("./lib/params");
+const { installModules, installModulesSync } = require("./lib/modules");
 const { getPackages, getPackagesSync } = require("@manypkg/get-packages");
-
-/**
- * Recursively get all dependencies from a package.json except monorepo packages
- * @param {PackageJsonType} sourcePackageJson
- * @param {Array<PackageType>} packages
- * @param {Array<string>} exclude
- * @returns {Partial<PackageJsonType>}
- */
-function getDeps(sourcePackageJson, packages, exclude = []) {
-  const monorepoPackageNames = packages.map((p) => p.packageJson.name);
-
-  /**
-   * @type {Record<string, string>}
-   */
-  const allDependencies = {};
-  const _processed = new Set();
-  let jobs = [sourcePackageJson.dependencies];
-
-  while (jobs.length) {
-    const job = jobs.shift();
-    if (!job) {
-      continue;
-    }
-
-    for (const pkgName of Object.keys(job)) {
-      if (_processed.has(pkgName)) {
-        continue;
-      }
-      _processed.add(pkgName);
-
-      const isMonorepoPkg = monorepoPackageNames.includes(pkgName);
-      if (isMonorepoPkg) {
-        const targetPkg = packages.find((p) => p.packageJson.name === pkgName);
-        if (!targetPkg) {
-          throw new Error(`can not find package ${pkgName}`);
-        }
-        const deps = targetPkg.packageJson.dependencies;
-        if (deps) {
-          jobs.push(deps);
-        }
-      } else {
-        allDependencies[pkgName] = job[pkgName];
-      }
-    }
-  }
-
-  // exclude some packages
-  const dependencies = Object.keys(allDependencies).reduce((acc, key) => {
-    if (!exclude.includes(key)) {
-      acc[key] = allDependencies[key];
-    }
-    return acc;
-  }, /** @type {Record<string, string>} */ ({}));
-
-  // NOTE: just use dependencies filed to install
-  return {
-    name: `${sourcePackageJson.name}-unmonorepo-output`,
-    private: true,
-    dependencies,
-  };
-}
-
-/**
- * Process params default value
- * @param {InstallParamsType} params
- * @returns
- */
-function preProcessParams(params) {
-  return {
-    cwd: params.cwd || process.cwd(),
-    source: params.source || "./package.json",
-    dist: params.dist || "./dist",
-    command:
-      params.command ||
-      "npm install --omit=dev --prefer-offline --no-audit --no-fund",
-    cacheDir: params.cacheDir || `${process.env.HOME}/.cache`,
-    omitJson: params.omitJson || false,
-    exclude: params.exclude || [],
-    onBeforeInstall: params.onBeforeInstall || function () {},
-  };
-}
 
 /**
  * Install dependencies for a package.json
@@ -101,64 +20,33 @@ async function installPkg(params = {}) {
     command,
     cacheDir,
     omitJson,
-    exclude,
+    generateJson,
     onBeforeInstall,
   } = preProcessParams(params);
 
-  // get package.json
+  // generate package.json
   const sourcePackageJson = require(path.resolve(cwd, source));
   const { packages } = await getPackages(cwd);
-  const finalPackageJson = getDeps(sourcePackageJson, packages, exclude);
-  // get cache path
-  const contentHash = crypto
-    .createHash("md5")
-    .update(JSON.stringify(finalPackageJson))
-    .digest("hex");
-  const realCacheDir = path.resolve(cacheDir, `unmonorepo-pkg/${contentHash}`);
-  const finalPackageJsonStr = JSON.stringify(finalPackageJson, null, 2);
+  let pkgJson = getPkgJson(sourcePackageJson, packages);
+  if (generateJson) {
+    pkgJson = await generateJson(JSON.parse(JSON.stringify(pkgJson)));
+  }
+  const pkgJsonStr = JSON.stringify(pkgJson, null, 2);
 
+  // output new package.json to dist
   if (!omitJson) {
-    await fs.writeFile(path.resolve(dist, "package.json"), finalPackageJsonStr);
+    await fs.ensureDir(dist);
+    await fs.writeFile(path.resolve(dist, "package.json"), pkgJsonStr);
   }
 
-  // output new package.json
-  await fs.ensureDir(realCacheDir);
-  await fs.writeFile(`${realCacheDir}/package.json`, finalPackageJsonStr);
+  // get cache path
+  onBeforeInstall && (await onBeforeInstall({ pkgJson }));
 
-  const result = {
-    packageJson: finalPackageJson,
+  await installModules({ pkgJsonStr, cacheDir, dist, command });
+
+  return {
+    pkgJson,
   };
-
-  await onBeforeInstall(result);
-
-  // install
-  await new Promise((resolve, reject) => {
-    exec(
-      command,
-      {
-        cwd: realCacheDir,
-        env: process.env,
-        encoding: "utf-8",
-      },
-      (error, stdout, stderr) => {
-        stdout && process.stdout.write(stdout);
-        stderr && process.stderr.write(stderr);
-
-        if (error) {
-          reject(error);
-        } else {
-          resolve(true);
-        }
-      }
-    );
-  });
-  // copy node modules
-  await fs.copy(
-    `${realCacheDir}/node_modules`,
-    path.resolve(cwd, dist, "node_modules")
-  );
-
-  return result;
 }
 
 /**
@@ -168,47 +56,39 @@ async function installPkg(params = {}) {
  * @param {InstallParamsType} params
  */
 function installPkgSync(params = {}) {
-  const { cwd, source, dist, command, cacheDir, omitJson, exclude } =
-    preProcessParams(params);
-
-  // get package.json
+  const {
+    cwd,
+    source,
+    dist,
+    command,
+    cacheDir,
+    omitJson,
+    generateJson,
+    onBeforeInstall,
+  } = preProcessParams(params);
+  // generate package.json
   const sourcePackageJson = require(path.resolve(cwd, source));
   const { packages } = getPackagesSync(cwd);
-  const finalPackageJson = getDeps(sourcePackageJson, packages, exclude);
-  // get cache path
-  const contentHash = crypto
-    .createHash("md5")
-    .update(JSON.stringify(finalPackageJson))
-    .digest("hex");
-  const realCacheDir = path.resolve(cacheDir, `unmonorepo-pkg/${contentHash}`);
-  const finalPackageJsonStr = JSON.stringify(finalPackageJson, null, 2);
+  let pkgJson = getPkgJson(sourcePackageJson, packages);
+  if (generateJson) {
+    pkgJson = generateJson(JSON.parse(JSON.stringify(pkgJson)));
+  }
+  const pkgJsonStr = JSON.stringify(pkgJson, null, 2);
 
+  // output new package.json to dist
   if (!omitJson) {
-    fs.writeFileSync(path.resolve(dist, "package.json"), finalPackageJsonStr);
+    fs.ensureDirSync(dist);
+    fs.writeFileSync(path.resolve(dist, "package.json"), pkgJsonStr);
   }
 
-  // output new package.json
-  fs.ensureDirSync(realCacheDir);
-  fs.writeFileSync(`${realCacheDir}/package.json`, finalPackageJsonStr);
+  // get cache path
+  onBeforeInstall && onBeforeInstall({ pkgJson });
 
-  const result = {
-    packageJson: finalPackageJson,
+  installModulesSync({ pkgJsonStr, cacheDir, dist, command });
+
+  return {
+    pkgJson,
   };
-
-  // install
-  execSync(command, {
-    cwd: realCacheDir,
-    env: process.env,
-    encoding: "utf-8",
-    stdio: "inherit",
-  });
-  // copy node modules
-  fs.copySync(
-    `${realCacheDir}/node_modules`,
-    path.resolve(cwd, dist, "node_modules")
-  );
-
-  return result;
 }
 
 module.exports = {

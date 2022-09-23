@@ -1,8 +1,10 @@
-type PackageType = import("@manypkg/get-packages").Package;
-type PackageJsonType = PackageType["packageJson"];
+type PkgType = import("@manypkg/get-packages").Package;
+type PkgJsonType = PkgType["packageJson"];
+
+type PartialPkgJsonType = Partial<PkgJsonType>;
 
 interface ReturnType {
-  packageJson: Partial<PackageJsonType>;
+  pkgJson: PartialPkgJsonType;
 }
 
 interface InstallParamsType {
@@ -31,10 +33,9 @@ interface InstallParamsType {
    */
   omitJson?: boolean;
   /**
-   * ignore some packages
+   * can modify package.json before install
    */
-  exclude?: string[];
-
+  generateJson?: (pkgJson: PartialPkgJsonType) => any;
   /**
    * trigger after emit package.json, before npm install
    *
