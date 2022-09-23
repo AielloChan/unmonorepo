@@ -29,9 +29,9 @@ interface InstallParamsType {
    */
   cacheDir?: string;
   /**
-   * avoid output package.json file
+   * output package.json file
    */
-  omitJson?: boolean;
+  outputJson?: boolean | string;
   /**
    * can modify package.json before install
    */

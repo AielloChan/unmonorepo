@@ -19,7 +19,7 @@ async function installPkg(params = {}) {
     dist,
     command,
     cacheDir,
-    omitJson,
+    outputJson,
     generateJson,
     onBeforeInstall,
   } = preProcessParams(params);
@@ -33,10 +33,14 @@ async function installPkg(params = {}) {
   }
   const pkgJsonStr = JSON.stringify(pkgJson, null, 2);
 
+  await fs.ensureDir(dist);
   // output new package.json to dist
-  if (!omitJson) {
-    await fs.ensureDir(dist);
-    await fs.writeFile(path.resolve(dist, "package.json"), pkgJsonStr);
+  if (outputJson) {
+    if (outputJson === true) {
+      await fs.writeFile(path.resolve(dist, "package.json"), pkgJsonStr);
+    } else {
+      await fs.writeFile(path.resolve(dist, outputJson), pkgJsonStr);
+    }
   }
 
   // get cache path
@@ -62,7 +66,7 @@ function installPkgSync(params = {}) {
     dist,
     command,
     cacheDir,
-    omitJson,
+    outputJson,
     generateJson,
     onBeforeInstall,
   } = preProcessParams(params);
@@ -75,10 +79,14 @@ function installPkgSync(params = {}) {
   }
   const pkgJsonStr = JSON.stringify(pkgJson, null, 2);
 
+  fs.ensureDirSync(dist);
   // output new package.json to dist
-  if (!omitJson) {
-    fs.ensureDirSync(dist);
-    fs.writeFileSync(path.resolve(dist, "package.json"), pkgJsonStr);
+  if (outputJson) {
+    if (outputJson === true) {
+      fs.writeFileSync(path.resolve(dist, "package.json"), pkgJsonStr);
+    } else {
+      fs.writeFileSync(path.resolve(dist, outputJson), pkgJsonStr);
+    }
   }
 
   // get cache path

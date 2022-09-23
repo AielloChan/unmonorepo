@@ -42,7 +42,7 @@ installPkg({
   dist: argv.dist,
   command: argv.command,
   cacheDir: argv.cacheDir,
-  omitJson: argv.omitJson,
+  outputJson: argv.outputJson,
 })
 ```
 
