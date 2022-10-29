@@ -1,3 +1,4 @@
+/// <reference path="./index.d.ts" />
 // @ts-check
 const path = require("path");
 const fs = require("fs-extra");
