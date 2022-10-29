@@ -1,6 +1,6 @@
 {
   "name": "@unmonorepo/pkg",
-  "version": "1.5.1",
+  "version": "1.5.2",
   "description": "install production node modules for specify monorepo workspace",
   "main": "main.js",
   "bin": {
