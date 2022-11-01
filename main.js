@@ -103,4 +103,5 @@ function installPkgSync(params = {}) {
 module.exports = {
   installPkg,
   installPkgSync,
+  installModulesSync,
 };
